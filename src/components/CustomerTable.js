@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react';
-import { useGlobalFilter, useTable, useFilters } from 'react-table';
+import { useState } from 'react';
+import { useGlobalFilter, useTable, useFilters, useExpanded } from 'react-table';
 import React from 'react';
-
 
 import {
   Table,
@@ -15,6 +14,8 @@ import {
   TableContainer,
   Button,
   Input,
+  useToast,
+  HStack
 } from '@chakra-ui/react'
 
 function CustomerTable({ columns, data }) {
@@ -32,15 +33,8 @@ function CustomerTable({ columns, data }) {
   } = useTable({
     columns,
     data,
-    // defaultColumn
-  }, useFilters, useGlobalFilter)
-  // Initially sort by the DoB
-  // const [sortBy, setSortBy] = useState('DoB');
-  // 
+  }, useFilters, useGlobalFilter, useExpanded);
 
-  // const filteredData = data.filter((item) =>
-  // item.name.toLowerCase().includes(searchQuery.toLowerCase())
-  // );
 
   const [searchPetName, setSearchPetName] = useState('');
   const [searchPetType, setSearchPetType] = useState('');
@@ -60,65 +54,81 @@ function CustomerTable({ columns, data }) {
     setSearchPetType(event.target.value);
   };
 
+  // Reference: https://stackoverflow.com/q/23476532/13919466
+  const isAlphabetical = (str) => /^[a-zA-Z]+$/.test(str);
+
+  const toastAlert = useToast();
+
+  // Working with single row
   const handleFilterSubmit = () => {
-    setGlobalFilter((rows, columns, filterValue) => {
-      return rows.filter((row) => {
-        const petNames = row.values['Pets'].map((pet) => pet.petName);
-        const petTypes = row.values['Pets'].map((pet) => pet.type);
-        return petNames.some((name) => name.includes(filterValue)) ||
-          petTypes.some((type) => type.includes(filterValue));
-      });
-    }, petName || petType);
+    // TODO: Add check for petname/type being alphabetical
+    if ((isAlphabetical(searchPetName) || (searchPetName === '')) && (isAlphabetical(searchPetType) || (searchPetType === ''))) {
+      console.log("Good search criteria!");
+      setGlobalFilter(searchPetName || searchPetType);
+    }
+    else {
+      toastAlert({
+        title: "Error",
+        description: "Search must only contain alphabetical characters",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      })
+      console.log("Error on alphabetical!");
+
+    }
   };
+
+  // Working with single row
+  const filteredRows = React.useMemo(() => {
+    return state.globalFilter && rows
+      ? rows.filter((row) => {
+        if (!row.original.Pets) return false;
+        const petNames = row.original.Pets.map((pet) => pet.petName.toLowerCase());
+        const petTypes = row.original.Pets.map((pet) => pet.type.toLowerCase());
+        const searchValue = state.globalFilter.toLowerCase();
+        return (
+          petNames.some((name) => name.includes(searchValue)) ||
+          petTypes.some((type) => type.includes(searchValue))
+        );
+      })
+      : rows;
+  }, [rows, state.globalFilter]);
 
 
   return (
     <>
-      <Input placeholder='Search by Pet Name' value={petName} onChange={handlePetNameChange} />
-      <Input placeholder='Search by Pet Type' value={petType} onChange={handlePetTypeChange} />
-      <Button onClick={handleFilterSubmit}>Filter</Button>
+      <HStack>
+        <Input placeholder='Search by Pet Type' value={searchPetType} onChange={handlePetTypeChange} />
+        <Input placeholder='Search by Pet Name' value={searchPetName} onChange={handlePetNameChange} />
+        <Button onClick={handleFilterSubmit} padding='5'>Search</Button>
+      </HStack>
 
       <TableContainer>
         <Table {...getTableProps()} variant='striped'>
-          {/* <TableCaption>Customer Information Table</TableCaption> */}
+          <TableCaption>Customer Information Table</TableCaption>
           <Thead>
             {headerGroups.map(headerGroup => (
               <Tr {...headerGroup.getHeaderGroupProps()}>
                 {headerGroup.headers.map(column => (
-                  <Th {...column.getHeaderProps()}>{column.render('Header')}</Th>
+                  <Th fontSize={'large'} {...column.getHeaderProps()}>{column.render('Header')}</Th>
                 ))}
               </Tr>
             ))}
           </Thead>
-          <Tbody >
-            {sortedData.map((row) => (
-              <Tr key={row.Id}>
-                <Td>{row.Id}</Td>
-                <Td>{row.Name}</Td>
-                <Td>{row.DoB}</Td>
-                <Td>{row.FavoriteColor || ""}</Td>
-                <Td>
-                  {row.Pets
-                    ? row.Pets.map((pet, index) => (
-                      <div key={index}>
-                        {pet.type}
-                      </div>
-                    ))
-                    : ""}
-                </Td>
-                <Td>
-                  {row.Pets
-                    ? row.Pets.map((pet, index) => (
-                      <div key={index}>
-                        {pet.petName}
-                      </div>
-                    ))
-                    : ""}
-                </Td>
-              </Tr>
-            ))}
-          </Tbody>
 
+          <Tbody {...getTableBodyProps()}>
+            {filteredRows.map((row) => {
+              prepareRow(row);
+              return (
+                <Tr {...row.getRowProps()}>
+                  {row.cells.map((cell) => (
+                    <Td {...cell.getCellProps()}>{cell.render('Cell')}</Td>
+                  ))}
+                </Tr>
+              );
+            })}
+          </Tbody>
         </Table>
       </TableContainer>
     </>
@@ -126,26 +136,3 @@ function CustomerTable({ columns, data }) {
 }
 
 export default CustomerTable;
-
-
-
-{/* // OG Version
-          <Tbody >
-            {data.map((row) => (
-              <Tr key={row.Id}>
-                <Td>{row.Id}</Td>
-                <Td>{row.Name}</Td>
-                <Td>{row.DoB}</Td>
-                <Td>{row.FavoriteColor || ""}</Td>
-                <Td>
-                  {row.Pets
-                    ? row.Pets.map((pet, index) => (
-                      <div key={index}>
-                        {pet.type} - {pet.Name}
-                      </div>
-                    ))
-                    : ""}
-                </Td>
-              </Tr>
-            ))}
-          </Tbody> */}
