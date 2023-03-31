@@ -40,13 +40,13 @@ function App() {
       Header: 'Pets',
       columns: [
         {
-          Header: 'Type',
-          accessor: 'type'
+          Header: 'type',
+          accessor: (row) => row.Pets?.[0]?.type || "",
         },
 
         {
-          Header: 'Name',
-          accessor: 'petName'
+          Header: 'petName',
+          accessor: (row) => row.Pets?.[0]?.petName || "",
         },
       ]
     },
@@ -107,6 +107,7 @@ function App() {
     }
   ], []
   )
+
   return (
     <ChakraProvider theme={theme}>
       <Box textAlign="center" fontSize="xl">
@@ -114,6 +115,7 @@ function App() {
           <ColorModeSwitcher justifySelf="flex-end" />
           <VStack spacing={8}>
             <Logo h="40vmin" pointerEvents="none" />
+            <Text fontSize='4xl'>Steven's Test</Text>
             <CustomerTable columns={columns} data={data} />
           </VStack>
         </Grid>
